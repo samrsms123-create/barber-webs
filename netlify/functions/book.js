@@ -1,5 +1,6 @@
 // netlify/functions/book.js
 // يستقبل الحجز من صفحة الموقع ويرسل تنبيه واتساب لصاحب الصالون (عبر Twilio)
+// إذا وُجد المتغير TWILIO_CONTENT_SID يرسل بالقالب الجاهز، وإلا يرسل نصًا عاديًا.
 // ملاحظة: النسخة الحالية لا تحفظ الحجوزات في قاعدة بيانات، فلا تمنع تكرار الحجز لنفس الوقت.
 
 const SLOTS = ["19:00", "19:15", "19:30", "19:45", "20:00", "20:15", "20:30", "20:45"];
@@ -15,7 +16,7 @@ const json = (statusCode, obj) => ({
   body: JSON.stringify(obj),
 });
 
-const clean = (v, n) => String(v || "").replace(/[\r\n]+/g, " ").trim().slice(0, n);
+const clean = (v, n) => String(v || "").replace(/\s+/g, " ").trim().slice(0, n);
 
 const arTime = (t) => {
   const [h, m] = t.split(":");
@@ -53,6 +54,7 @@ exports.handler = async (event) => {
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_WHATSAPP_FROM;
   const to = process.env.SALON_WHATSAPP;
+  const contentSid = process.env.TWILIO_CONTENT_SID;
   if (!sid || !token || !from || !to) return json(500, { error: "config" });
 
   let dayText = day;
@@ -65,13 +67,29 @@ exports.handler = async (event) => {
     });
   } catch (e) {}
 
-  const body =
-    "🔔 حجز جديد - الحلاقة للرجال\n" +
-    "الاسم: " + name + "\n" +
-    "الجوال: " + phone + "\n" +
-    "الخدمة: " + svc.name + "\n" +
-    "اليوم: " + dayText + " (" + day + ")\n" +
-    "الوقت: " + arTime(slot);
+  const params = new URLSearchParams({ From: from, To: to });
+
+  if (contentSid) {
+    // قالب جاهز: المتغير 1 = التفاصيل، المتغير 2 = الوقت (بدون أسطر جديدة)
+    params.set("ContentSid", contentSid);
+    params.set(
+      "ContentVariables",
+      JSON.stringify({
+        "1": [dayText, name, phone, svc.name].join(" | "),
+        "2": arTime(slot),
+      })
+    );
+  } else {
+    params.set(
+      "Body",
+      "🔔 حجز جديد - الحلاقة للرجال\n" +
+        "الاسم: " + name + "\n" +
+        "الجوال: " + phone + "\n" +
+        "الخدمة: " + svc.name + "\n" +
+        "اليوم: " + dayText + " (" + day + ")\n" +
+        "الوقت: " + arTime(slot)
+    );
+  }
 
   try {
     const res = await fetch(
@@ -82,7 +100,7 @@ exports.handler = async (event) => {
           Authorization: "Basic " + Buffer.from(sid + ":" + token).toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({ From: from, To: to, Body: body }).toString(),
+        body: params.toString(),
       }
     );
     if (!res.ok) {
