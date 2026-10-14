@@ -41,8 +41,9 @@ input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(
 <div class="w"><div class="top"><h1 id="ttl"></h1><button class="lang" id="lg"></button></div><p class="sub" id="sb"></p><div id="app"></div></div>
 <script>
 const T={
-ar:{t:"الحلاقة للرجال",sub:"احجز موعدك أونلاين. كل يوم من 7 إلى 9 مساءً.",s1:"اختر الخدمة",s2:"اختر اليوم",s3:"اختر الوقت",s4:"بياناتك",hair:"قص شعر",beard:"حلاقة ذقن",both:"قص شعر + حلاقة ذقن",m15:"15 دقيقة",m30:"30 دقيقة",nm:"الاسم",ph:"رقم الهاتف",go:"احجز الموعد",busy:"جارٍ الحجز...",ok:"تم حجز موعدك",again:"حجز موعد آخر",taken:"هذا الوقت حُجز للتو. اختر وقتاً آخر.",fail:"تعذّر الحجز. حاول مرة أخرى.",other:"Türkçe",loc:"ar",dir:"rtl"},
-tr:{t:"Erkek Berberi",sub:"Online randevu alın. Her gün 19:00 - 21:00.",s1:"Hizmet seçin",s2:"Gün seçin",s3:"Saat seçin",s4:"Bilgileriniz",hair:"Saç kesimi",beard:"Sakal tıraşı",both:"Saç kesimi + sakal tıraşı",m15:"15 dk",m30:"30 dk",nm:"Ad Soyad",ph:"Telefon numarası",go:"Randevu al",busy:"Kaydediliyor...",ok:"Randevunuz alındı",again:"Başka randevu al",taken:"Bu saat az önce alındı. Başka bir saat seçin.",fail:"Randevu alınamadı. Tekrar deneyin.",other:"العربية",loc:"tr",dir:"ltr"}};
+  ar:{t:"الحلاقة للرجال",sub:"احجز موعدك أونلاين. كل يوم من 7 إلى 9 مساءً.",s1:"اختر الخدمة",s2:"اختر اليوم",s3:"اختر الوقت",s4:"بياناتك",شعر:"قص شعر",لحية:"حلاقة ذقن",كلاهما:"قص شعر + حلاقة ذقن",m15:"15 دقيقة",m30:"30 دقيقة",nm:"الاسم",ph:"رقم الهاتف",go:"احجز الآن",busy:"جارٍ الحجز...",ok:"تم حجز موعدك بنجاح",again:"حجز موعد آخر",مأخوذ:"هذا الوقت حجز للتو. اختر وقتاً آخر.",fail:"فشل الحجز. حاول مجدداً."},
+  tr:{t:"Erkek Berberi",sub:"Online randevu alın. Her gün 19:00 - 21:00 arası.",s1:"Hizmet seçin",s2:"Gün seçin",s3:"Saat seçin",s4:"Bilgileriniz",hair:"Saç kesimi",beard:"Sakal tıraşı",both:"Saç kesimi + sakal tıraşı",m15:"15 dk",m30:"30 dk",nm:"Ad Soyad",ph:"Telefon numarası",go:"Randevu al",busy:"Kaydediliyor...",ok:"Randevunuz alındı",again:"Başka randevu al",مأخوذ:"Bu saat az önce alındı. Başka bir saat seçin.",fail:"Randevu alınamadı. Tekrar deneyin.",other:"العربية",loc:"tr",dir:"ltr"}
+};
 const SV=[["hair",1],["beard",1],["both",2]];
 const SLOTS=["19:00","19:15","19:30","19:45","20:00","20:15","20:30","20:45"];
 let L="ar";try{L=localStorage.getItem("l")||"ar"}catch(e){}
@@ -50,24 +51,28 @@ const IST=()=>new Date().toLocaleString("sv-SE",{timeZone:"Europe/Istanbul"});
 const add=(d,n)=>{const x=new Date(d+"T12:00:00Z");x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)};
 const days=[...Array(7)].map((_,i)=>add(IST().slice(0,10),i));
 const fmt=(d,o)=>new Date(d+"T12:00:00Z").toLocaleDateString(T[L].loc,{...o,timeZone:"UTC"});
-const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&","<":"<",">":">",'"':"""}[c]));
 const lab=t=>{if(L!=="ar")return t;const[h,m]=t.split(":");return (h-12)+":"+m+" م"};
 let S,taken=new Set();
 const fresh=()=>S={day:days[0],svc:null,slot:null,name:"",phone:"",busy:false,done:null,err:""};fresh();
 const need=()=>S.svc?SV.find(x=>x[0]===S.svc)[1]:1;
-function free(i){const n=need(),now=IST();for(let k=0;k<n;k++){const t=SLOTS[i+k];if(!t||taken.has(t)||S.day+" "+t+":00"<=now)return false}return true}
+const free=i=>{const n=need(),now=IST();for(let k=0;k<n;k++){const t=SLOTS[i+k];if(!t||taken.has(t)||S.day+" "+t+":00"<=now)return false}return true};
 async function load(){try{const r=await fetch("/.netlify/functions/slots?day="+S.day);taken=new Set(r.ok?await r.json():[])}catch(e){taken=new Set()}render()}
 const ready=()=>S.svc&&S.slot&&S.name.trim()&&S.phone.trim()&&!S.busy;
 function render(){
   const t=T[L],a=document.getElementById("app");
   document.documentElement.lang=L;document.documentElement.dir=t.dir;document.title=t.t;
-  document.getElementById("ttl").textContent=t.t;document.getElementById("sb").textContent=t.sub;document.getElementById("lg").textContent=t.other;
-  if(S.done){a.innerHTML='<div class="done"><h2>'+t.ok+'</h2><p><b>'+fmt(S.done.day,{weekday:"long",day:"numeric",month:"long"})+' · '+lab(S.done.slot)+'</b><br>'+t[S.done.svc]+' — '+esc(S.done.name)+'</p><button class="o" id="again">'+t.again+'</button></div>';document.getElementById("again").onclick=()=>{fresh();load()};return}
+  document.getElementById("ttl").textContent=t.t;document.getElementById("sb").textContent=t.sub;document.getElementById("lg").textContent=t.other||"Türkçe";
+  if(S.done){
+    a.innerHTML='<div class="done"><h2>'+t.ok+'</h2><p><b>'+fmt(S.done.day,{weekday:"long",day:"numeric",month:"long"})+' · '+lab(S.done.slot)+'</b><br>'+(t[S.done.svc]||S.done.svc)+' — '+esc(S.done.name)+'</p><button class="o" id="again">'+t.again+'</button></div>';
+    document.getElementById("again").onclick=()=>{fresh();load()};
+    return;
+  }
   a.innerHTML=
-  '<section><h2>'+t.s1+'</h2><div class="g g2">'+SV.map(([id,n])=>'<button class="o sv'+(S.svc===id?' on':'')+'" data-s="'+id+'"><span>'+t[id]+'</span><span>'+t["m"+n*15]+'</span></button>').join("")+'</div></section>'+
-  '<section><h2>'+t.s2+'</h2><div class="g g4">'+days.map(d=>'<button class="o'+(S.day===d?' on':'')+'" data-d="'+d+'">'+fmt(d,{weekday:"short"})+'<br>'+fmt(d,{day:"numeric",month:"numeric"})+'</button>').join("")+'</div></section>'+
-  '<section><h2>'+t.s3+'</h2><div class="g g4">'+SLOTS.map((s,i)=>'<button class="o'+(S.slot===s?' on':'')+'" data-t="'+s+'"'+(free(i)?'':' disabled')+'>'+lab(s)+'</button>').join("")+'</div></section>'+
-  '<section><h2>'+t.s4+'</h2><input id="nm" autocomplete="name" placeholder="'+t.nm+'" value="'+esc(S.name)+'"><input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="'+t.ph+'" value="'+esc(S.phone)+'"><button class="go" id="bk"'+(ready()?'':' disabled')+'>'+(S.busy?t.busy:t.go)+'</button>'+(S.err?'<p class="err" role="alert">'+t[S.err]+'</p>':'')+'</section>';
+    '<section><h2>'+t.s1+'</h2><div class="g g2">'+SV.map(([id,n])=>'<button class="o sv'+(S.svc===id?' on':'')+'" data-s="'+id+'"><span>'+(t[id]||id)+'</span><span>'+t["m"+n*15]+'</span></button>').join("")+'</div></section>'+
+    '<section><h2>'+t.s2+'</h2><div class="g g4">'+days.map(d=>'<button class="o'+(S.day===d?' on':'')+'" data-d="'+d+'">'+fmt(d,{weekday:"short"})+'<br>'+fmt(d,{day:"numeric",month:"numeric"})+'</button>').join("")+'</div></section>'+
+    '<section><h2>'+t.s3+'</h2><div class="g g4">'+SLOTS.map((s,i)=>'<button class="o'+(S.slot===s?' on':'')+'" data-t="'+s+'"'+(free(i)?'':' disabled')+'>'+lab(s)+'</button>').join("")+'</div></section>'+
+    '<section><h2>'+t.s4+'</h2><input id="nm" autocomplete="name" placeholder="'+t.nm+'" value="'+esc(S.name)+'"><input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="'+t.ph+'" value="'+esc(S.phone)+'"><button class="go" id="bk"'+(ready()?'':' disabled')+'>'+(S.busy?t.busy:t.go)+'</button>'+(S.err?'<p class="err" role="alert">'+t[S.err]+'</p>':'')+'</section>';
   a.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{S.svc=b.dataset.s;S.slot=null;render()});
   a.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{S.day=b.dataset.d;S.slot=null;S.err="";load()});
   a.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{S.slot=b.dataset.t;render()});
